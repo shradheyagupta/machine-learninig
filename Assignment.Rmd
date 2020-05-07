@@ -1,0 +1,85 @@
+---
+title: "Practical Machine Learning"
+date: "5/7/2020"
+output: html_document
+---
+# Data loading
+The training data for this project are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from http://groupware.les.inf.puc-rio.br/har. Full source:
+
+Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. “Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human ’13)”. Stuttgart, Germany: ACM SIGCHI, 2013.
+
+My special thanks to the above mentioned authors for being so generous in allowing their data to be used for this kind of assignment.
+
+A short description of the datasets content from the authors’ website:
+
+“Six young health participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions: exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E).
+
+Class A corresponds to the specified execution of the exercise, while the other 4 classes correspond to common mistakes. Participants were supervised by an experienced weight lifter to make sure the execution complied to the manner they were supposed to simulate. The exercises were performed by six male participants aged between 20-28 years, with little weight lifting experience. We made sure that all participants could easily simulate the mistakes in a safe and controlled manner by using a relatively light dumbbell (1.25kg)."
+
+```{r}
+a=read.csv('pml-training.csv',na.strings=c('','NA'))
+b=a[,!apply(a,2,function(x) any(is.na(x)) )]
+c=b[,-c(1:7)]
+```
+This leave us with 19622 observations and 53 predictors (one of which is the response variable). To continue with the analysis we load the necessary packages
+
+```{r}
+library('randomForest')
+library('caret')
+library('e1071')
+```
+
+For cross validation, We split our testing data into sub groups, 60:40
+```{r}
+subGrps=createDataPartition(y=c$classe, p=0.6, list=FALSE)
+subTraining=c[subGrps,]
+subTesting=c[-subGrps, ]
+dim(subTraining);dim(subTesting)
+```
+We see there are 11776 in the subTraining group, and 7846 in the subTesting group.
+
+I then continue to make a predictive model based on the random forest paradigm, as it is one of the best performing, using the subTraining group. Once the model is made, we predict the outcome of the other group, subTesting, and examine the confusion matrix to see how well the predictive model performed
+```{r}
+model=randomForest(classe~., data=subTraining, method='class')
+pred=predict(model,subTesting, type='class')
+z=confusionMatrix(pred,subTesting$classe)
+save(z,file='test.RData')
+```
+
+```{r}
+load('test.RData')
+z$table
+```
+
+```{r}
+z$overall[1]
+```
+Based on this, The accuracy is 99.31%. The out of sample error, that is the error rate on a new (subTesting) data set, here is going to be 0.69%, with a 95% confidence interval of 0.52% to .9%.
+
+Final Data Set Analysis and Predictions
+
+This is very good, so I continue with the final testing data set. I read it in and preporcess it the same way as the training set previously.
+```{r}
+d=read.csv('pml-testing.csv',na.strings=c('','NA'))
+e=d[,!apply(d,2,function(x) any(is.na(x)) )]
+f=e[,-c(1:7)]
+```
+Once the dataset it processed, I continue to analyse it using the model developed above
+```{r}
+predicted=predict(model,f,type='class')
+save(predicted,file='predicted.RData')
+```
+The final prediction for the 20 ends up as:
+```{r}
+load('predicted.RData')
+predicted
+```
+
